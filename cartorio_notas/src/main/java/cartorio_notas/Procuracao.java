@@ -6,6 +6,7 @@
 package cartorio_notas;
 
 import java.util.Date;
+import org.bson.Document;
 
 /**
  *
@@ -29,6 +30,24 @@ public class Procuracao extends Documento{
         this.cpf_mandante = cpf_mandante;
         this.cpf_mandatario = cpf_mandatario;
         this.data = data;
+    }
+    
+    public Procuracao(Document doc){
+        
+        super(doc.get("_id", Integer.class));
+        this.cpf_mandante = doc.get("Cpf_mandante", String.class);
+        this.cpf_mandatario = doc.get("Cpf_mandatario", String.class);
+        this.data = doc.get("Data", Date.class);
+    }
+    
+    @Override
+    public Document toDocument(){
+        Document doc = new Document("_id", this.getId())
+                .append("Cpf_mandante", this.getCpf_mandante())
+                .append("Cpf_mandatario", this.getCpf_mandatario())
+                .append("Data", this.getData())
+                ;
+        return doc;
     }
 
     /**

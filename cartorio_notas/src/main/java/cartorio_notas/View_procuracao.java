@@ -5,6 +5,11 @@
  */
 package cartorio_notas;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
+import org.bson.Document;
 import java.awt.HeadlessException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -14,13 +19,15 @@ import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.MaskFormatter;
 
+
 /**
  *
  * @author Bruno
  */
 public class View_procuracao extends javax.swing.JFrame {
 
-    ArrayList<Procuracao> procuracoes = new ArrayList<>();
+    private ArrayList<Procuracao> procuracoes = new ArrayList<>();
+    private final MongoCollection<Document> database_procuracao = Database_control.getInstance().getDatabase().getCollection("procuracao");
     int opcao = -1;
     
     public View_procuracao() {
@@ -42,12 +49,6 @@ public class View_procuracao extends javax.swing.JFrame {
             MaskFormatter mask_cpf2 = new MaskFormatter("###.###.###-##");
             MaskFormatter mask_date = new MaskFormatter("##/##/####");
             // Id aceita qualquer caracter para ter espaços vazios.
-            MaskFormatter mask_id = new MaskFormatter("AAA");
-            mask_id.setPlaceholder(" ");
-            mask_id.setValidCharacters("0123456789");
-            
-            
-            mask_id.install(ftxt_id);
             mask_cpf.install(ftxt_cpf);
             mask_cpf2.install(ftxt_cpf_mandatario);
             mask_date.install(ftxt_data);
@@ -61,11 +62,26 @@ public class View_procuracao extends javax.swing.JFrame {
         for (int i = 0; i < pnl_form.getComponents().length; i++){
             pnl_form.getComponent(i).setEnabled(enabled);
         }
+        ftxt_id.setEnabled(false);
         lbl_arquivo.setEnabled(false);
         txt_arquivo.setEnabled(false);
     }
     
     private void carregar_tabela(){
+        
+        procuracoes.clear();
+        Procuracao p;
+        MongoCursor<Document> cursor = database_procuracao.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                System.out.println(doc.toJson());
+                p = new Procuracao(doc);
+                procuracoes.add(p);
+            }
+        } finally {
+            cursor.close();
+        }
         
         tb_tabela.removeAll();
         
@@ -111,21 +127,7 @@ public class View_procuracao extends javax.swing.JFrame {
     }
     
     private boolean validar_campos(){
-        
-        String id_string = ftxt_id.getText();
-        if (id_string.isEmpty()){
-            JOptionPane.showMessageDialog(this, "Campo \"Id\" vazio!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
-        id_string = id_string.trim();
-        
-        int id = Integer.parseInt(id_string);
-        if(!verifica_id(id)){
-            JOptionPane.showMessageDialog(this, "Documento já registrado!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
+            
         String cpf = ftxt_cpf.getText();
         if(cpf.isEmpty()){
             JOptionPane.showMessageDialog(this, "Campo \"Cpf do testador\" vazio!", "Erro", JOptionPane.ERROR_MESSAGE);
@@ -166,11 +168,25 @@ public class View_procuracao extends javax.swing.JFrame {
         return true;
     }
     
-    private boolean verifica_id(int id){
-        for(int i = 0 ; i < procuracoes.size(); i++){
-            if(id == procuracoes.get(i).getId()) return false;
+    private int verifica_id(){
+        
+        Document doc;
+        int id = -1;
+        MongoCursor<Document> cursor = database_procuracao.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                doc = cursor.next();
+                System.out.println(doc.toJson());
+                if(id < doc.getInteger("_id")){
+                    id = doc.getInteger("_id") + 1;
+                    System.out.println("verfica_id: id disponivel " + id);
+                }
+            }
+            return id;
+        } finally {
+            cursor.close();
+            if(id == -1) return 0;
         }
-        return true;
     }
     
     private boolean validar_data(String data_string){
@@ -239,18 +255,21 @@ public class View_procuracao extends javax.swing.JFrame {
     }
     
     private int cadastrar_procuracao(){
+        
         if(!validar_campos()) return 1;
             
         try{
             SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
 
-            // pegar campos
-            String id_string = ftxt_id.getText().trim();
+            // Se n tem nada no banco de dados, id = 0.
+            int id;
+            if(this.opcao == 0){
+                id = verifica_id();
+            }else id = Integer.parseInt(ftxt_id.getText());
+            
             String cpf_mandante = ftxt_cpf.getText();
             String cpf_mandatario = ftxt_cpf_mandatario.getText();
             String data_string = ftxt_data.getText();
-
-            int id = Integer.parseInt(id_string);
             
             Date data = formatted_date.parse(data_string);
             
@@ -258,16 +277,30 @@ public class View_procuracao extends javax.swing.JFrame {
             
             procuracoes.add(procuracao);
             
+            // TODO add mongodb code here.
+            // To add something on mongo, use bson Document:
+            Document doc = procuracao.toDocument();
+           
+            if(this.opcao == 0){
+                database_procuracao.insertOne(doc);
+                JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Cadastro", JOptionPane.INFORMATION_MESSAGE);
+            }
+            if(this.opcao == 1){
+                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Cpf_mandante", procuracao.getCpf_mandante()));
+                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Cpf_mandatario", procuracao.getCpf_mandatario()));
+                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Data", procuracao.getData()));
+                JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
+            }
+                       
             limpar_campos();
             hab_campos(false);
-            if(this.opcao == 0) JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Registrar", JOptionPane.INFORMATION_MESSAGE);
-            if(this.opcao == 1) JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
             carregar_tabela();
             return 0;
+            
         }catch(HeadlessException | NumberFormatException | ParseException ex){
-            System.out.println("Erro ao registrar procuração!\nerro: " + ex);
+            JOptionPane.showMessageDialog(this, "Erro ao armazenar na base de dados!", "Erro", JOptionPane.INFORMATION_MESSAGE);
+            return 1;
         }
-        return 0;
     }
     
     private int editar_procuracao(int edit_index){
@@ -311,8 +344,10 @@ public class View_procuracao extends javax.swing.JFrame {
         try{
             int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
             if(op == 0){
-                procuracoes.remove(delete_index);
+                Procuracao p = procuracoes.get(delete_index);
+                database_procuracao.deleteOne(Filters.eq("_id", p.getId()));
                 JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
+                carregar_tabela();
                 return 0;
             }else{
                 return 1;

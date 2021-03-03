@@ -6,6 +6,7 @@
 package cartorio_notas;
 
 import java.util.Date;
+import org.bson.Document;
 
 /**
  *
@@ -17,6 +18,9 @@ public class Antenupcial extends Documento{
     private String cpf_noiva;
     private Date data;
     private int id_funcionario;
+    
+    // TODO Fazer o atributo id_funcionario ser tipo Funcionario para armazenamento
+    // no banco de dados.
     
     /**
      * @param id
@@ -32,6 +36,25 @@ public class Antenupcial extends Documento{
         this.cpf_noivo = cpf_noivo;
         this.data = data;
     }
+    
+    public Antenupcial(Document doc){
+        super(doc.get("_id", Integer.class));
+        this.cpf_noiva = doc.get("Cpf_noiva", String.class);
+        this.cpf_noivo = doc.get("Cpf_noivo", String.class);
+        this.data = doc.get("Data", Date.class);
+        this.id_funcionario = doc.get("id_funcionario", Integer.class);
+    }
+    
+    @Override
+    public Document toDocument(){
+        Document doc = new Document("_id", this.getId())
+                .append("Cpf_noiva", this.getCpf_noiva())
+                .append("Cpf_noivo", this.getCpf_noivo())
+                .append("Data", this.getData())
+                .append("id_funcionario", this.getId_funcionario())
+                ;
+        return doc;
+    }    
 
     /**
      * @return the cpf_noivo

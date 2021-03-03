@@ -5,6 +5,8 @@
  */
 package cartorio_notas;
 
+import org.bson.Document;
+
 /**
  *
  * @author Bruno
@@ -15,6 +17,11 @@ public class Documento {
     // NOSQL não implementado ainda!
     public Documento(int id){
         this.id = id;
+    }
+    
+    public Document toDocument(){
+        Document doc = new Document("_id", id);
+        return doc;
     }
             
     /**

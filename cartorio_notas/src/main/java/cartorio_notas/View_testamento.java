@@ -5,6 +5,11 @@
  */
 package cartorio_notas;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
+import org.bson.Document;
 import java.awt.HeadlessException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -22,6 +27,8 @@ public class View_testamento extends javax.swing.JFrame {
     
     // TODO Singleton para cuidar do armazenamento dos arraylists.
     private ArrayList<Testamento> testamentos = new ArrayList<>();
+    private final MongoCollection<Document> database_funcionarios = Database_control.getInstance().getDatabase().getCollection("funcionarios");
+    private final MongoCollection<Document> database_testamentos = Database_control.getInstance().getDatabase().getCollection("testamentos");
     private int opcao = -1;
     // -1 - nenhum
     // 0 - add
@@ -67,11 +74,26 @@ public class View_testamento extends javax.swing.JFrame {
         for (int i = 0; i < pnl_form.getComponents().length; i++){
             pnl_form.getComponent(i).setEnabled(enabled);
         }
+        ftxt_id.setEnabled(false);
         lbl_arquivo.setEnabled(false);
         txt_arquivo.setEnabled(false);
     }
     
     private void carregar_tabela(){
+        
+        testamentos.clear();
+        Testamento t;
+        MongoCursor<Document> cursor = database_testamentos.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                System.out.println(doc.toJson());
+                t = new Testamento(doc);
+                testamentos.add(t);
+            }
+        } finally {
+            cursor.close();
+        }
         
         tb_tabela.removeAll();
         
@@ -118,21 +140,7 @@ public class View_testamento extends javax.swing.JFrame {
     }
     
     private boolean validar_campos(){
-        
-        String id_string = ftxt_id.getText();
-        if (id_string.isEmpty()){
-            JOptionPane.showMessageDialog(this, "Campo \"Id\" vazio!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
-        id_string = id_string.trim();
-        
-        int id = Integer.parseInt(id_string);
-        if(!verifica_id(id)){
-            JOptionPane.showMessageDialog(this, "Documento já registrado!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
+               
         String id_funcionario_string = ftxt_id_funcionario.getText();
         if (id_funcionario_string.isEmpty()){
             JOptionPane.showMessageDialog(this, "Campo \"Id Funcionário\" vazio!", "Erro", JOptionPane.ERROR_MESSAGE);
@@ -179,11 +187,25 @@ public class View_testamento extends javax.swing.JFrame {
         return true;
     }
     
-    private boolean verifica_id(int id){
-        for(int i = 0 ; i < testamentos.size(); i++){
-            if(id == testamentos.get(i).getId()) return false;
+    private int verifica_id(){
+        
+        Document doc;
+        int id = -1;
+        MongoCursor<Document> cursor = database_testamentos.find().iterator();
+        try {
+            while (cursor.hasNext()) {
+                doc = cursor.next();
+                System.out.println(doc.toJson());
+                if(id < doc.getInteger("_id")){
+                    id = doc.getInteger("_id") + 1;
+                    System.out.println("verfica_id: id disponivel " + id);
+                }
+            }
+            return id;
+        } finally {
+            cursor.close();
+            if(id == -1) return 0;
         }
-        return true;
     }
     
     private boolean validar_data(String data_string){
@@ -260,14 +282,17 @@ public class View_testamento extends javax.swing.JFrame {
         
             SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
 
-            // pegar campos
-            String id_string = ftxt_id.getText().trim();
+            // Se n tem nada no banco de dados, id = 0.
+            int id;
+            if(this.opcao == 0){
+                id = verifica_id();
+            }else id = Integer.parseInt(ftxt_id.getText());
+            
             String id_funcionario_string = ftxt_id_funcionario.getText().trim();
             String cpf_testador = ftxt_cpf.getText();
             String cpf_testemunha = ftxt_cpf_testemunha.getText();
             String data_string = ftxt_data.getText();
-
-            int id = Integer.parseInt(id_string);
+            
             int id_funcionario = Integer.parseInt(id_funcionario_string);
             
             Date data = formatted_date.parse(data_string);
@@ -276,15 +301,29 @@ public class View_testamento extends javax.swing.JFrame {
             
             testamentos.add(testamento);
             
+            // TODO add mongodb code here.
+            // To add something on mongo, use bson Document:
+            Document doc = testamento.toDocument();
+           
+            if(this.opcao == 0){
+                database_testamentos.insertOne(doc);
+                JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Cadastro", JOptionPane.INFORMATION_MESSAGE);
+            }
+            if(this.opcao == 1){
+                database_testamentos.updateOne(Filters.eq("_id", testamento.getId()), Updates.set("Cpf_testador", testamento.getCpf_testador()));
+                database_testamentos.updateOne(Filters.eq("_id", testamento.getId()), Updates.set("Cpf_testemunha", testamento.getCpf_testemunha()));
+                database_testamentos.updateOne(Filters.eq("_id", testamento.getId()), Updates.set("id_funcionario", testamento.getId_funcionario()));
+                database_testamentos.updateOne(Filters.eq("_id", testamento.getId()), Updates.set("Data", testamento.getData()));
+                JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
+            }
+            
             limpar_campos();
             hab_campos(false);
-            if(this.opcao == 0) JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Registrar", JOptionPane.INFORMATION_MESSAGE);
-            if(this.opcao == 1) JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
             carregar_tabela();
             return 0;
             
         } catch (NumberFormatException | ParseException ex) {
-            System.out.println("Erro ao registrar o testamento!\nerro: " + ex);
+            JOptionPane.showMessageDialog(this, "Erro ao armazenar na base de dados!", "Erro", JOptionPane.INFORMATION_MESSAGE);
             return 1;
         }
     }
@@ -332,8 +371,10 @@ public class View_testamento extends javax.swing.JFrame {
         try{
             int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
             if(op == 0){
-                testamentos.remove(delete_index);
+                Testamento t = testamentos.get(delete_index);
+                database_testamentos.deleteOne(Filters.eq("_id", t.getId()));
                 JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
+                carregar_tabela();
                 return 0;
             }else{
                 return 1;

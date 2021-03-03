@@ -44,8 +44,6 @@ public class View_funcionario extends javax.swing.JFrame {
         hab_campos(false);
         carregar_tabela();
         desab_botoes(opcao);
-        carregar_tabela();
-        int aux = verifica_id();
     }
     
     private void hab_mask(){
@@ -149,8 +147,8 @@ public class View_funcionario extends javax.swing.JFrame {
         }
         
         char [] senha = ptxt_password.getPassword();
-        if(senha.length == 0){
-            JOptionPane.showMessageDialog(this, "Cpf invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
+        if(senha.length < 8){
+            JOptionPane.showMessageDialog(this, "Senha invalida!\nA senha deve conter 8 caracteres", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
         
@@ -230,7 +228,7 @@ public class View_funcionario extends javax.swing.JFrame {
         // Recarrega o arraylist e a tabela com a base de dados
         carregar_tabela();
         // Se esta cadastrando e a validação de campos der false, retorna erro.
-        if( this.opcao == 0 && !validar_campos()) return 1;
+        if(!validar_campos()) return 1;
         
         // Se n tem nada no banco de dados, id = 0.
         int id;
@@ -250,8 +248,6 @@ public class View_funcionario extends javax.swing.JFrame {
         try{
             Funcionario funcionario = new Funcionario(id, nome, cpf, email, nivel, senha);
             funcionarios.add(funcionario);
-            limpar_campos();
-            hab_campos(false);
             // TODO add mongodb code here.
             // To add something on mongo, use bson Document:
             Document doc = funcionario.toDocument();
@@ -269,9 +265,10 @@ public class View_funcionario extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
             }
             
-//            if(this.opcao == 1) database_funcionarios.updateOne(editar.toDocument(), doc);
-            
+            limpar_campos();
+            hab_campos(false);
             return 0;
+            
         }catch(HeadlessException e){
             System.out.println("Erro no cadastro!\nErro: " + e);
             JOptionPane.showMessageDialog(this, "Erro no cadastro!", "Erro", JOptionPane.ERROR_MESSAGE);
@@ -287,7 +284,6 @@ public class View_funcionario extends javax.swing.JFrame {
         ftxt_id.setEditable(false);
         
         if(edit_index == -1){
-            ftxt_id.setEditable(false);
             JOptionPane.showMessageDialog(this, "Selecione um item da lista", "Erro", JOptionPane.ERROR_MESSAGE);
             hab_campos(false);
             opcao = -1;
@@ -325,6 +321,7 @@ public class View_funcionario extends javax.swing.JFrame {
                 Funcionario f = funcionarios.get(delete_index);
                 database_funcionarios.deleteOne(Filters.eq("_id", f.getId()));
                 JOptionPane.showMessageDialog(this, "Funcionário deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
+                carregar_tabela();
                 return 0;
             }else{
                 return 1;

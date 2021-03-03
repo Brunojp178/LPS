@@ -6,6 +6,7 @@
 package cartorio_notas;
 
 import java.util.Date;
+import org.bson.Document;
 
 /**
  *
@@ -31,6 +32,25 @@ public class Testamento extends Documento{
         this.cpf_testemunha = cpf_testemunha;
         this.data_registro = data;
     }    
+    
+    public Testamento(Document doc){
+        super(doc.get("_id", Integer.class));
+        this.id_funcionario = doc.get("id_funcionario", Integer.class);
+        this.cpf_testador = doc.get("Cpf_testador", String.class);
+        this.cpf_testemunha = doc.get("Cpf_testemunha", String.class);
+        this.data_registro = doc.get("Data_registro", Date.class);
+    }
+    
+    public Document toDocument(){
+        
+        Document doc = new Document("_id", this.getId())
+                .append("id_funcionario", this.getId_funcionario())
+                .append("Cpf_testador", this.getCpf_testador())
+                .append("Cpf_testemunha", this.getCpf_testemunha())
+                .append("Data_registro", this.getData())
+                ;
+        return doc;
+    }
      
     /**
      * @return the cpf_testador

@@ -9,6 +9,7 @@ cartorio_notas\Testamento.class
 cartorio_notas\View_debugMenu.class
 cartorio_notas\View_funcionario$3.class
 cartorio_notas\View_debugMenu$4.class
+cartorio_notas\Dao_antenupcial.class
 cartorio_notas\View_antenupcial$2.class
 cartorio_notas\View_funcionario$5.class
 cartorio_notas\View_debugMenu$2.class
@@ -23,6 +24,7 @@ cartorio_notas\View_testamento$4.class
 cartorio_notas\Antenupcial.class
 cartorio_notas\View_antenupcial$4.class
 cartorio_notas\View_procuracao$4.class
+cartorio_notas\Dao_testamento.class
 cartorio_notas\View_debugMenu$3.class
 cartorio_notas\View_testamento.class
 cartorio_notas\Procuracao.class

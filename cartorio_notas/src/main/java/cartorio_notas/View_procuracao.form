@@ -309,6 +309,9 @@
               </Properties>
             </Component>
             <Component class="javax.swing.JFormattedTextField" name="ftxt_data">
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="ftxt_dataActionPerformed"/>
+              </Events>
             </Component>
           </SubComponents>
         </Container>

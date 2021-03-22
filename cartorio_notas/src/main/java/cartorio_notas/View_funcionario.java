@@ -6,10 +6,6 @@
 package cartorio_notas;
 
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
-import java.awt.HeadlessException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import javax.swing.JOptionPane;
@@ -32,6 +28,7 @@ public class View_funcionario extends javax.swing.JFrame {
     private int opcao = -1;
     private final MongoCollection<Document> database_funcionarios = Database_control.getInstance().getDatabase().getCollection("funcionarios");
     private Funcionario editar;
+    private final Dao_Funcionario dao = Dao_Funcionario.getInstance();
     
     public View_funcionario() {
         initComponents();
@@ -69,17 +66,10 @@ public class View_funcionario extends javax.swing.JFrame {
     private void carregar_tabela(){
         
         funcionarios.clear();
-        Funcionario f;
-        MongoCursor<Document> cursor = database_funcionarios.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                Document doc = cursor.next();
-                System.out.println(doc.toJson());
-                f = new Funcionario(doc);
-                funcionarios.add(f);
-            }
-        } finally {
-            cursor.close();
+        try{
+            funcionarios = dao.carregar_collection();
+        }catch(Exception e){
+            System.out.println("Erro ao carregar a coleção!");
         }
         
         tb_tabela.removeAll();
@@ -155,31 +145,6 @@ public class View_funcionario extends javax.swing.JFrame {
         return true;
     }
     
-    /**
-     * 
-     * @return Último id cadastrado.
-     */
-    private int verifica_id(){
-        
-        Document doc;
-        int id = -1;
-        MongoCursor<Document> cursor = database_funcionarios.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                doc = cursor.next();
-                System.out.println(doc.toJson());
-                if(id < doc.getInteger("_id")){
-                    id = doc.getInteger("_id") + 1;
-                    System.out.println("verfica_id: id disponivel " + id);
-                }
-            }
-            return id;
-        } finally {
-            cursor.close();
-            if(id == -1) return 0;
-        }
-    }
-    
     private boolean validar_cpf(String cpf){
         if (cpf.equals("00000000000") ||
             cpf.equals("11111111111") ||
@@ -233,7 +198,7 @@ public class View_funcionario extends javax.swing.JFrame {
         // Se n tem nada no banco de dados, id = 0.
         int id;
         if(this.opcao == 0){
-            id = verifica_id();
+            id = dao.verifica_id();
         }else id = Integer.parseInt(ftxt_id.getText());
                 
         String nome = txt_nome.getText();
@@ -247,29 +212,14 @@ public class View_funcionario extends javax.swing.JFrame {
         
         try{
             Funcionario funcionario = new Funcionario(id, nome, cpf, email, nivel, senha);
+            dao.inserir_document(funcionario, opcao);
             funcionarios.add(funcionario);
-            // TODO add mongodb code here.
-            // To add something on mongo, use bson Document:
-            Document doc = funcionario.toDocument();
-           
-            if(this.opcao == 0){
-                database_funcionarios.insertOne(doc);
-                JOptionPane.showMessageDialog(this, "Cadastrado com sucesso!", "Cadastro", JOptionPane.INFORMATION_MESSAGE);
-            }
-            if(this.opcao == 1){
-                database_funcionarios.updateOne(Filters.eq("_id", funcionario.getId()), Updates.set("Nome", funcionario.getNome()));
-                database_funcionarios.updateOne(Filters.eq("_id", funcionario.getId()), Updates.set("Cpf", funcionario.getCpf()));
-                database_funcionarios.updateOne(Filters.eq("_id", funcionario.getId()), Updates.set("Email", funcionario.getEmail()));
-                database_funcionarios.updateOne(Filters.eq("_id", funcionario.getId()), Updates.set("Nivel", funcionario.getNivel()));
-                database_funcionarios.updateOne(Filters.eq("_id", funcionario.getId()), Updates.set("Senha", String.valueOf(funcionario.getSenha())));
-                JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
-            }
-            
+                        
             limpar_campos();
             hab_campos(false);
             return 0;
             
-        }catch(HeadlessException e){
+        }catch(Exception e){
             System.out.println("Erro no cadastro!\nErro: " + e);
             JOptionPane.showMessageDialog(this, "Erro no cadastro!", "Erro", JOptionPane.ERROR_MESSAGE);
             return 2;
@@ -319,14 +269,14 @@ public class View_funcionario extends javax.swing.JFrame {
             int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
             if(op == 0){
                 Funcionario f = funcionarios.get(delete_index);
-                database_funcionarios.deleteOne(Filters.eq("_id", f.getId()));
+                dao.deletar_document(f);
                 JOptionPane.showMessageDialog(this, "Funcionário deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
                 carregar_tabela();
                 return 0;
             }else{
                 return 1;
             }
-        }catch(HeadlessException e){
+        }catch(Exception e){
             System.out.println("Erro ao deletar!\nErro: " + e);
             return 1;
         }

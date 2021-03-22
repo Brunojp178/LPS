@@ -5,11 +5,6 @@
  */
 package cartorio_notas;
 
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
-import java.awt.HeadlessException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -17,7 +12,6 @@ import java.util.Date;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.MaskFormatter;
-import org.bson.Document;
 
 /**
  *
@@ -25,10 +19,10 @@ import org.bson.Document;
  */
 public class View_antenupcial extends javax.swing.JFrame {
 
-    private ArrayList<Antenupcial> antenupiciais = new ArrayList<>();
-    private final MongoCollection<Document> database_funcionarios = Database_control.getInstance().getDatabase().getCollection("funcionarios");
-    private final MongoCollection<Document> database_antenupcial = Database_control.getInstance().getDatabase().getCollection("antenupcial");
+    private ArrayList<Antenupcial> antenupciais = new ArrayList<>();
     private int opcao = -1;
+    private final Dao_antenupcial dao = Dao_antenupcial.getInstance();
+    
     
     public View_antenupcial() {
         initComponents();
@@ -72,18 +66,11 @@ public class View_antenupcial extends javax.swing.JFrame {
     
     private void carregar_tabela(){
         
-        antenupiciais.clear();
-        Antenupcial a;
-        MongoCursor<Document> cursor = database_antenupcial.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                Document doc = cursor.next();
-                System.out.println(doc.toJson());
-                a = new Antenupcial(doc);
-                antenupiciais.add(a);
-            }
-        } finally {
-            cursor.close();
+        antenupciais.clear();
+        try{
+            antenupciais = dao.carregar_collection();
+        }catch(Exception e){
+            System.out.println("Erro ao carregar a coleção!");
         }
         
         tb_tabela.removeAll();
@@ -91,10 +78,10 @@ public class View_antenupcial extends javax.swing.JFrame {
         String [] colunas = {"Id", "Id Funcionário", "Cpf Noiva", "Cpf Noivo"};
         DefaultTableModel model = new DefaultTableModel(colunas, 0);
         
-        for(int i = 0; i < antenupiciais.size(); i++){
+        for(int i = 0; i < antenupciais.size(); i++){
             // TODO carregar tabela
             // funcionarios.get(i).getId(), funcionarios.get(i).getNome(), funcionarios.get(i).getEmail()
-            Object [] linha = {antenupiciais.get(i).getId(), antenupiciais.get(i).getId_funcionario(), antenupiciais.get(i).getCpf_noiva(), antenupiciais.get(i).getCpf_noivo()};
+            Object [] linha = {antenupciais.get(i).getId(), antenupciais.get(i).getId_funcionario(), antenupciais.get(i).getCpf_noiva(), antenupciais.get(i).getCpf_noivo()};
             model.addRow(linha);
         }
         
@@ -129,28 +116,7 @@ public class View_antenupcial extends javax.swing.JFrame {
         ftxt_data.setText("");
         txt_arquivo.setText("");
     }
-    
-    private int verifica_id(){
         
-        Document doc;
-        int id = -1;
-        MongoCursor<Document> cursor = database_antenupcial.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                doc = cursor.next();
-                System.out.println(doc.toJson());
-                if(id < doc.getInteger("_id")){
-                    id = doc.getInteger("_id") + 1;
-                    System.out.println("verfica_id: id disponivel " + id);
-                }
-            }
-            return id;
-        } finally {
-            cursor.close();
-            if(id == -1) return 0;
-        }
-    }
-    
     private boolean validar_campos(){
              
         String id_funcionario_string = ftxt_id_funcionario.getText();
@@ -278,7 +244,7 @@ public class View_antenupcial extends javax.swing.JFrame {
             // Se n tem nada no banco de dados, id = 0.
             int id;
             if(this.opcao == 0){
-                id = verifica_id();
+                id = dao.verifica_id();
             }else id = Integer.parseInt(ftxt_id.getText());
             
             String id_funcionario_string = ftxt_id_funcionario.getText().trim();
@@ -292,24 +258,14 @@ public class View_antenupcial extends javax.swing.JFrame {
             
             Antenupcial antenupcial = new Antenupcial(id, id_funcionario, cpf_noivo, cpf_noiva, data);
             
-            antenupiciais.add(antenupcial);
-            
-            // TODO add mongodb code here.
-            // To add something on mongo, use bson Document:
-            Document doc = antenupcial.toDocument();
-           
-            if(this.opcao == 0){
-                database_antenupcial.insertOne(doc);
-                JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Cadastro", JOptionPane.INFORMATION_MESSAGE);
-            }
-            if(this.opcao == 1){
-                database_antenupcial.updateOne(Filters.eq("_id", antenupcial.getId()), Updates.set("Cpf_noiva", antenupcial.getCpf_noiva()));
-                database_antenupcial.updateOne(Filters.eq("_id", antenupcial.getId()), Updates.set("Cpf_noivo", antenupcial.getCpf_noivo()));
-                database_antenupcial.updateOne(Filters.eq("_id", antenupcial.getId()), Updates.set("Data", antenupcial.getData()));
-                database_antenupcial.updateOne(Filters.eq("_id", antenupcial.getId()), Updates.set("id_funcionario", antenupcial.getId_funcionario()));
-                JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
+            try{
+                dao.inserir_document(antenupcial, opcao);
+                antenupciais.add(antenupcial);
+            }catch(Exception e){
+                JOptionPane.showMessageDialog(null, "Erro ao armazenar o registro!", "Erro", JOptionPane.ERROR_MESSAGE);
             }
             
+            // Pos registro
             limpar_campos();
             hab_campos(false);
             carregar_tabela();
@@ -337,7 +293,7 @@ public class View_antenupcial extends javax.swing.JFrame {
         try{
             
             SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
-            Antenupcial antenupcial = antenupiciais.get(edit_index);
+            Antenupcial antenupcial = antenupciais.get(edit_index);
             
             ftxt_id.setText(Integer.toString(antenupcial.getId()));
             ftxt_id_funcionario.setText(Integer.toString(antenupcial.getId_funcionario()));
@@ -362,16 +318,16 @@ public class View_antenupcial extends javax.swing.JFrame {
         try{
             int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
             if(op == 0){
-                Antenupcial a = antenupiciais.get(delete_index);
-                database_antenupcial.deleteOne(Filters.eq("_id", a.getId()));
+                Antenupcial a = antenupciais.get(delete_index);
+                dao.deletar_document(a);
                 JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
                 carregar_tabela();
                 return 0;
             }else{
                 return 1;
             }
-        }catch(HeadlessException e){
-            System.out.println("Erro ao deletar!\nErro: " + e);
+        }catch(Exception e){
+            JOptionPane.showMessageDialog(this, "Erro ao deletar o registro!\nErro: " + e, "Erro", JOptionPane.ERROR_MESSAGE);
             return 1;
         }
     }
@@ -681,8 +637,8 @@ public class View_antenupcial extends javax.swing.JFrame {
             // Remove antigo
             int id = Integer.parseInt(ftxt_id.getText().trim());
 
-            for(int i = 0; i < antenupiciais.size(); i++){
-                if(id == antenupiciais.get(i).getId()) antenupiciais.remove(i);
+            for(int i = 0; i < antenupciais.size(); i++){
+                if(id == antenupciais.get(i).getId()) antenupciais.remove(i);
             }
 
             int editado = cadastrar_antenupcial();

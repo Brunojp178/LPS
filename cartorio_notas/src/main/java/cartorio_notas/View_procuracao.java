@@ -27,7 +27,7 @@ import javax.swing.text.MaskFormatter;
 public class View_procuracao extends javax.swing.JFrame {
 
     private ArrayList<Procuracao> procuracoes = new ArrayList<>();
-    private final MongoCollection<Document> database_procuracao = Database_control.getInstance().getDatabase().getCollection("procuracao");
+    private final Dao_procuracao dao = Dao_procuracao.getInstance();
     int opcao = -1;
     
     public View_procuracao() {
@@ -70,28 +70,15 @@ public class View_procuracao extends javax.swing.JFrame {
     private void carregar_tabela(){
         
         procuracoes.clear();
-        Procuracao p;
-        MongoCursor<Document> cursor = database_procuracao.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                Document doc = cursor.next();
-                System.out.println(doc.toJson());
-                p = new Procuracao(doc);
-                procuracoes.add(p);
-            }
-        } finally {
-            cursor.close();
-        }
-        
+        procuracoes = dao.carregar_collection();        
         tb_tabela.removeAll();
+        SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
         
         String [] colunas = {"Id", "Data da procuração", "Cpf Mandante", "Cpf Mandatário"};
         DefaultTableModel model = new DefaultTableModel(colunas, 0);
         
         for(int i = 0; i < procuracoes.size(); i++){
-            // TODO carregar tabela
-            // funcionarios.get(i).getId(), funcionarios.get(i).getNome(), funcionarios.get(i).getEmail()
-            Object [] linha = {procuracoes.get(i).getId(), procuracoes.get(i).getData(), procuracoes.get(i).getCpf_mandante(), procuracoes.get(i).getCpf_mandatario()};
+            Object [] linha = {procuracoes.get(i).getId(), formatted_date.format(procuracoes.get(i).getData()), procuracoes.get(i).getCpf_mandante(), procuracoes.get(i).getCpf_mandatario()};
             model.addRow(linha);
         }
         
@@ -167,28 +154,7 @@ public class View_procuracao extends javax.swing.JFrame {
         
         return true;
     }
-    
-    private int verifica_id(){
-        
-        Document doc;
-        int id = -1;
-        MongoCursor<Document> cursor = database_procuracao.find().iterator();
-        try {
-            while (cursor.hasNext()) {
-                doc = cursor.next();
-                System.out.println(doc.toJson());
-                if(id < doc.getInteger("_id")){
-                    id = doc.getInteger("_id") + 1;
-                    System.out.println("verfica_id: id disponivel " + id);
-                }
-            }
-            return id;
-        } finally {
-            cursor.close();
-            if(id == -1) return 0;
-        }
-    }
-    
+     
     private boolean validar_data(String data_string){
         try {
             SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
@@ -264,7 +230,7 @@ public class View_procuracao extends javax.swing.JFrame {
             // Se n tem nada no banco de dados, id = 0.
             int id;
             if(this.opcao == 0){
-                id = verifica_id();
+                id = dao.verifica_id();
             }else id = Integer.parseInt(ftxt_id.getText());
             
             String cpf_mandante = ftxt_cpf.getText();
@@ -275,29 +241,16 @@ public class View_procuracao extends javax.swing.JFrame {
             
             Procuracao procuracao = new Procuracao(id, cpf_mandante, cpf_mandatario, data);
             
+            dao.inserir_document(procuracao, opcao);
             procuracoes.add(procuracao);
             
-            // TODO add mongodb code here.
-            // To add something on mongo, use bson Document:
-            Document doc = procuracao.toDocument();
-           
-            if(this.opcao == 0){
-                database_procuracao.insertOne(doc);
-                JOptionPane.showMessageDialog(this, "Registrado com sucesso!", "Cadastro", JOptionPane.INFORMATION_MESSAGE);
-            }
-            if(this.opcao == 1){
-                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Cpf_mandante", procuracao.getCpf_mandante()));
-                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Cpf_mandatario", procuracao.getCpf_mandatario()));
-                database_procuracao.updateOne(Filters.eq("_id", procuracao.getId()), Updates.set("Data", procuracao.getData()));
-                JOptionPane.showMessageDialog(this, "Editado com sucesso!", "Edição", JOptionPane.INFORMATION_MESSAGE);
-            }
-                       
+            //Pos Registro
             limpar_campos();
             hab_campos(false);
             carregar_tabela();
             return 0;
             
-        }catch(HeadlessException | NumberFormatException | ParseException ex){
+        }catch(Exception ex){
             JOptionPane.showMessageDialog(this, "Erro ao armazenar na base de dados!", "Erro", JOptionPane.INFORMATION_MESSAGE);
             return 1;
         }
@@ -345,7 +298,7 @@ public class View_procuracao extends javax.swing.JFrame {
             int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
             if(op == 0){
                 Procuracao p = procuracoes.get(delete_index);
-                database_procuracao.deleteOne(Filters.eq("_id", p.getId()));
+                dao.deletar_document(p);
                 JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
                 carregar_tabela();
                 return 0;
@@ -477,6 +430,12 @@ public class View_procuracao extends javax.swing.JFrame {
 
         lbl_data.setFont(new java.awt.Font("Dialog", 1, 14)); // NOI18N
         lbl_data.setText("Data do registro");
+
+        ftxt_data.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ftxt_dataActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout pnl_formLayout = new javax.swing.GroupLayout(pnl_form);
         pnl_form.setLayout(pnl_formLayout);
@@ -663,6 +622,10 @@ public class View_procuracao extends javax.swing.JFrame {
         desab_botoes(opcao);
         carregar_tabela();
     }//GEN-LAST:event_btn_confirmActionPerformed
+
+    private void ftxt_dataActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ftxt_dataActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_ftxt_dataActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btn_add;

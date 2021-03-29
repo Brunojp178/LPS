@@ -5,13 +5,11 @@
  */
 package cartorio_notas;
 
-import com.mongodb.client.MongoCollection;
 import java.text.ParseException;
 import java.util.ArrayList;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.MaskFormatter;
-import org.bson.Document;
 
 /**
  *
@@ -20,15 +18,13 @@ import org.bson.Document;
 public class View_funcionario extends javax.swing.JFrame {
     
 // TODO Singleton para cuidar do armazenamento dos arraylists.
-    ArrayList<Funcionario> funcionarios = new ArrayList<>();
+    private ArrayList<Funcionario> funcionarios = new ArrayList<>();
     // -1 - nenhum
     // 0 - add
     // 1 - update
     // 2 - delete
     private int opcao = -1;
-    private final MongoCollection<Document> database_funcionarios = Database_control.getInstance().getDatabase().getCollection("funcionarios");
-    private Funcionario editar;
-    private final Dao_Funcionario dao = Dao_Funcionario.getInstance();
+    private final Controller_funcionario controller = new Controller_funcionario();
     
     public View_funcionario() {
         initComponents();
@@ -65,12 +61,7 @@ public class View_funcionario extends javax.swing.JFrame {
     
     private void carregar_tabela(){
         
-        funcionarios.clear();
-        try{
-            funcionarios = dao.carregar_collection();
-        }catch(Exception e){
-            System.out.println("Erro ao carregar a coleção!");
-        }
+        funcionarios = controller.carregar_tabela();
         
         tb_tabela.removeAll();
         
@@ -120,7 +111,7 @@ public class View_funcionario extends javax.swing.JFrame {
         }
         cpf = cpf.replaceAll("\\.", "");
         cpf = cpf.replaceAll("-", "");
-        if(!validar_cpf(cpf)){
+        if(!controller.validar_cpf(cpf)){
             JOptionPane.showMessageDialog(this, "Cpf invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -145,50 +136,6 @@ public class View_funcionario extends javax.swing.JFrame {
         return true;
     }
     
-    private boolean validar_cpf(String cpf){
-        if (cpf.equals("00000000000") ||
-            cpf.equals("11111111111") ||
-            cpf.equals("22222222222") || cpf.equals("33333333333") ||
-            cpf.equals("44444444444") || cpf.equals("55555555555") ||
-            cpf.equals("66666666666") || cpf.equals("77777777777") ||
-            cpf.equals("88888888888") || cpf.equals("99999999999") ||
-            (cpf.length() != 11))
-            return(false);
-        char dig10, dig11;
-        int sm, i, r, num, peso;
-        
-        sm = 0;
-            peso = 10;
-            for (i=0; i<9; i++) {
-        // converte o i-esimo caractere do CPF em um numero:
-        // por exemplo, transforma o caractere '0' no inteiro 0
-        // (48 eh a posicao de '0' na tabela ASCII)
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-            }
-
-            r = 11 - (sm % 11);
-            if ((r == 10) || (r == 11))
-                dig10 = '0';
-            else dig10 = (char)(r + 48); // converte no respectivo caractere numerico
-            sm = 0;
-            peso = 11;
-            for(i=0; i<10; i++) {
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-            }
-
-            r = 11 - (sm % 11);
-            if ((r == 10) || (r == 11))
-                 dig11 = '0';
-            else dig11 = (char)(r + 48);
-            if ((dig10 == cpf.charAt(9)) && (dig11 == cpf.charAt(10)))
-                 return true;
-            else return false;
-    }
-    
     private int cadastrar_funcionario(){
         // Recarrega o arraylist e a tabela com a base de dados
         carregar_tabela();
@@ -198,7 +145,7 @@ public class View_funcionario extends javax.swing.JFrame {
         // Se n tem nada no banco de dados, id = 0.
         int id;
         if(this.opcao == 0){
-            id = dao.verifica_id();
+            id = controller.verifica_id();
         }else id = Integer.parseInt(ftxt_id.getText());
                 
         String nome = txt_nome.getText();
@@ -210,20 +157,11 @@ public class View_funcionario extends javax.swing.JFrame {
         String nivel_string = ftxt_nivel.getText();
         int nivel = Integer.parseInt(nivel_string);
         
-        try{
-            Funcionario funcionario = new Funcionario(id, nome, cpf, email, nivel, senha);
-            dao.inserir_document(funcionario, opcao);
-            funcionarios.add(funcionario);
-                        
-            limpar_campos();
-            hab_campos(false);
-            return 0;
-            
-        }catch(Exception e){
-            System.out.println("Erro no cadastro!\nErro: " + e);
-            JOptionPane.showMessageDialog(this, "Erro no cadastro!", "Erro", JOptionPane.ERROR_MESSAGE);
-            return 2;
-        }
+        controller.cadastrar_funcionario(id, nome, email, cpf, nivel, senha, opcao);
+                
+        limpar_campos();
+        hab_campos(false);
+        return 0;
     }
     
     private int editar_funcionario(int edit_index){
@@ -248,9 +186,7 @@ public class View_funcionario extends javax.swing.JFrame {
             txt_email.setText(func.getEmail());
             ftxt_nivel.setText(Integer.toString(func.getNivel()));
             ftxt_cpf.setText(func.getCpf());
-            
-            this.editar = func;
-                        
+                                    
             return 0;
             
         }catch(Exception e){
@@ -265,21 +201,9 @@ public class View_funcionario extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Selecione um item da lista", "Erro", JOptionPane.ERROR_MESSAGE);
             return 1;
         }
-        try{
-            int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
-            if(op == 0){
-                Funcionario f = funcionarios.get(delete_index);
-                dao.deletar_document(f);
-                JOptionPane.showMessageDialog(this, "Funcionário deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
-                carregar_tabela();
-                return 0;
-            }else{
-                return 1;
-            }
-        }catch(Exception e){
-            System.out.println("Erro ao deletar!\nErro: " + e);
-            return 1;
-        }
+        controller.deletar_funcionario(delete_index);
+        carregar_tabela();
+        return 0;
     }
     
     private void desab_botoes(int opcao){
@@ -563,6 +487,8 @@ public class View_funcionario extends javax.swing.JFrame {
         switch (opcao){
             case 0:
                 int cadastrar = cadastrar_funcionario();
+                limpar_campos();
+                hab_campos(false);
                 break;
             case 1:
                 

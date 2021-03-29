@@ -47,7 +47,7 @@ public class Dao_procuracao {
         }
     }
     
-    public ArrayList<Procuracao> carregar_collection(){
+    public ArrayList<Procuracao> carregar_collection() throws Exception{
         Procuracao p;
         MongoCursor<Document> cursor = database_procuracao.find().iterator();
         ArrayList<Procuracao> procuracoes = new ArrayList<>();
@@ -80,7 +80,7 @@ public class Dao_procuracao {
         }
     }
     
-    public void deletar_document(Procuracao deletar){
+    public void deletar_document(Procuracao deletar)  throws Exception{
         database_procuracao.deleteOne(Filters.eq("_id", deletar.getId()));
     }
 }

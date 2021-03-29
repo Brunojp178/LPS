@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package cartorio_notas;
 
 import java.text.ParseException;
@@ -21,7 +16,7 @@ public class View_antenupcial extends javax.swing.JFrame {
 
     private ArrayList<Antenupcial> antenupciais = new ArrayList<>();
     private int opcao = -1;
-    private final Dao_antenupcial dao = Dao_antenupcial.getInstance();
+    private final Controller_antenupcial controller = new Controller_antenupcial();
     
     
     public View_antenupcial() {
@@ -67,11 +62,8 @@ public class View_antenupcial extends javax.swing.JFrame {
     private void carregar_tabela(){
         
         antenupciais.clear();
-        try{
-            antenupciais = dao.carregar_collection();
-        }catch(Exception e){
-            System.out.println("Erro ao carregar a coleção!");
-        }
+        
+        antenupciais = controller.carregar_tabela();
         
         tb_tabela.removeAll();
         
@@ -132,7 +124,7 @@ public class View_antenupcial extends javax.swing.JFrame {
         }
         cpf = cpf.replaceAll("\\.", "");
         cpf = cpf.replaceAll("-", "");
-        if(!validar_cpf(cpf)){
+        if(!controller.validar_cpf(cpf)){
             JOptionPane.showMessageDialog(this, "Cpf da Noiva invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -144,7 +136,7 @@ public class View_antenupcial extends javax.swing.JFrame {
         }
         cpf_noivo = cpf_noivo.replaceAll("\\.", "");
         cpf_noivo = cpf_noivo.replaceAll("-", "");
-        if(!validar_cpf(cpf_noivo)){
+        if(!controller.validar_cpf(cpf_noivo)){
             JOptionPane.showMessageDialog(this, "Cpf do Noivo!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -155,7 +147,7 @@ public class View_antenupcial extends javax.swing.JFrame {
             return false;
         }
         
-        if(!validar_data(data)){
+        if(!controller.validar_data(data)){
             JOptionPane.showMessageDialog(this, "Data invalida!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -164,72 +156,7 @@ public class View_antenupcial extends javax.swing.JFrame {
         
         return true;
     }
-    
-    private boolean validar_data(String data_string){
-        try {
-            SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
-            Date data = formatted_date.parse(data_string);
-            
-            if(data.after(formatted_date.parse("31/12/2021"))){
-                return false;
-            }
-            
-            if(data.before(formatted_date.parse("01/01/1950"))){
-                return false;
-            }
-            
-            return true;
-            
-        } catch (ParseException ex) {
-            System.out.println("Erro ao validar a data!\nerro: " + ex);
-            return false;
-        }
-    }
-    
-    private boolean validar_cpf(String cpf){
-        if (cpf.equals("00000000000") ||
-            cpf.equals("11111111111") ||
-            cpf.equals("22222222222") || cpf.equals("33333333333") ||
-            cpf.equals("44444444444") || cpf.equals("55555555555") ||
-            cpf.equals("66666666666") || cpf.equals("77777777777") ||
-            cpf.equals("88888888888") || cpf.equals("99999999999") ||
-            (cpf.length() != 11))
-            return(false);
-        char dig10, dig11;
-        int sm, i, r, num, peso;
         
-        sm = 0;
-        peso = 10;
-        for (i=0; i<9; i++) {
-            // converte o i-esimo caractere do CPF em um numero:
-            // por exemplo, transforma o caractere '0' no inteiro 0
-            // (48 eh a posicao de '0' na tabela ASCII)
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-            dig10 = '0';
-        else dig10 = (char)(r + 48); // converte no respectivo caractere numerico
-            sm = 0;
-            peso = 11;
-            for(i=0; i<10; i++) {
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-             dig11 = '0';
-        else dig11 = (char)(r + 48);
-        if ((dig10 == cpf.charAt(9)) && (dig11 == cpf.charAt(10)))
-             return true;
-        else return false;
-    }
-    
     private int cadastrar_antenupcial(){
         
         // Recarrega o arraylist e a tabela com a base de dados
@@ -244,7 +171,7 @@ public class View_antenupcial extends javax.swing.JFrame {
             // Se n tem nada no banco de dados, id = 0.
             int id;
             if(this.opcao == 0){
-                id = dao.verifica_id();
+                id = controller.verifica_id();
             }else id = Integer.parseInt(ftxt_id.getText());
             
             String id_funcionario_string = ftxt_id_funcionario.getText().trim();
@@ -256,14 +183,7 @@ public class View_antenupcial extends javax.swing.JFrame {
             
             Date data = formatted_date.parse(data_string);
             
-            Antenupcial antenupcial = new Antenupcial(id, id_funcionario, cpf_noivo, cpf_noiva, data);
-            
-            try{
-                dao.inserir_document(antenupcial, opcao);
-                antenupciais.add(antenupcial);
-            }catch(Exception e){
-                JOptionPane.showMessageDialog(null, "Erro ao armazenar o registro!", "Erro", JOptionPane.ERROR_MESSAGE);
-            }
+            controller.cadastrar_antenupcial(id, id_funcionario, cpf_noivo, cpf_noiva, data, opcao);
             
             // Pos registro
             limpar_campos();
@@ -311,25 +231,14 @@ public class View_antenupcial extends javax.swing.JFrame {
     }
     
     private int deletar_antenupicial(int delete_index){
+        
         if(delete_index == -1){
             JOptionPane.showMessageDialog(this, "Selecione um item da lista", "Erro", JOptionPane.ERROR_MESSAGE);
             return 1;
         }
-        try{
-            int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
-            if(op == 0){
-                Antenupcial a = antenupciais.get(delete_index);
-                dao.deletar_document(a);
-                JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
-                carregar_tabela();
-                return 0;
-            }else{
-                return 1;
-            }
-        }catch(Exception e){
-            JOptionPane.showMessageDialog(this, "Erro ao deletar o registro!\nErro: " + e, "Erro", JOptionPane.ERROR_MESSAGE);
-            return 1;
-        }
+        controller.deletar_antenupcial(delete_index);
+        carregar_tabela();
+        return 0;
     }
     
     /**

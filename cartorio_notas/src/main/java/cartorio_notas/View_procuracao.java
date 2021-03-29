@@ -5,12 +5,6 @@
  */
 package cartorio_notas;
 
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
-import org.bson.Document;
-import java.awt.HeadlessException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,7 +21,7 @@ import javax.swing.text.MaskFormatter;
 public class View_procuracao extends javax.swing.JFrame {
 
     private ArrayList<Procuracao> procuracoes = new ArrayList<>();
-    private final Dao_procuracao dao = Dao_procuracao.getInstance();
+    private final Controller_procuracao controller = new Controller_procuracao();
     int opcao = -1;
     
     public View_procuracao() {
@@ -70,7 +64,9 @@ public class View_procuracao extends javax.swing.JFrame {
     private void carregar_tabela(){
         
         procuracoes.clear();
-        procuracoes = dao.carregar_collection();        
+        
+        procuracoes = controller.carregar_tabela();
+        
         tb_tabela.removeAll();
         SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
         
@@ -122,7 +118,7 @@ public class View_procuracao extends javax.swing.JFrame {
         }
         cpf = cpf.replaceAll("\\.", "");
         cpf = cpf.replaceAll("-", "");
-        if(!validar_cpf(cpf)){
+        if(!controller.validar_cpf(cpf)){
             JOptionPane.showMessageDialog(this, "Cpf do testador invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -134,7 +130,7 @@ public class View_procuracao extends javax.swing.JFrame {
         }
         cpf_testemunha = cpf_testemunha.replaceAll("\\.", "");
         cpf_testemunha = cpf_testemunha.replaceAll("-", "");
-        if(!validar_cpf(cpf_testemunha)){
+        if(!controller.validar_cpf(cpf_testemunha)){
             JOptionPane.showMessageDialog(this, "Cpf da testemunha invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -145,7 +141,7 @@ public class View_procuracao extends javax.swing.JFrame {
             return false;
         }
         
-        if(!validar_data(data)){
+        if(!controller.validar_data(data)){
             JOptionPane.showMessageDialog(this, "Data invalida!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -154,72 +150,7 @@ public class View_procuracao extends javax.swing.JFrame {
         
         return true;
     }
-     
-    private boolean validar_data(String data_string){
-        try {
-            SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
-            Date data = formatted_date.parse(data_string);
-            
-            if(data.after(formatted_date.parse("31/12/2021"))){
-                return false;
-            }
-            
-            if(data.before(formatted_date.parse("01/01/1950"))){
-                return false;
-            }
-            
-            return true;
-            
-        } catch (ParseException ex) {
-            System.out.println("Erro ao validar a data!\nerro: " + ex);
-            return false;
-        }
-    }
-    
-    private boolean validar_cpf(String cpf){
-        if (cpf.equals("00000000000") ||
-            cpf.equals("11111111111") ||
-            cpf.equals("22222222222") || cpf.equals("33333333333") ||
-            cpf.equals("44444444444") || cpf.equals("55555555555") ||
-            cpf.equals("66666666666") || cpf.equals("77777777777") ||
-            cpf.equals("88888888888") || cpf.equals("99999999999") ||
-            (cpf.length() != 11))
-            return(false);
-        char dig10, dig11;
-        int sm, i, r, num, peso;
-        
-        sm = 0;
-        peso = 10;
-        for (i=0; i<9; i++) {
-            // converte o i-esimo caractere do CPF em um numero:
-            // por exemplo, transforma o caractere '0' no inteiro 0
-            // (48 eh a posicao de '0' na tabela ASCII)
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-            dig10 = '0';
-        else dig10 = (char)(r + 48); // converte no respectivo caractere numerico
-            sm = 0;
-            peso = 11;
-            for(i=0; i<10; i++) {
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-             dig11 = '0';
-        else dig11 = (char)(r + 48);
-        if ((dig10 == cpf.charAt(9)) && (dig11 == cpf.charAt(10)))
-             return true;
-        else return false;
-    }
-    
+         
     private int cadastrar_procuracao(){
         
         if(!validar_campos()) return 1;
@@ -230,7 +161,7 @@ public class View_procuracao extends javax.swing.JFrame {
             // Se n tem nada no banco de dados, id = 0.
             int id;
             if(this.opcao == 0){
-                id = dao.verifica_id();
+                id = controller.verifica_id();
             }else id = Integer.parseInt(ftxt_id.getText());
             
             String cpf_mandante = ftxt_cpf.getText();
@@ -239,10 +170,7 @@ public class View_procuracao extends javax.swing.JFrame {
             
             Date data = formatted_date.parse(data_string);
             
-            Procuracao procuracao = new Procuracao(id, cpf_mandante, cpf_mandatario, data);
-            
-            dao.inserir_document(procuracao, opcao);
-            procuracoes.add(procuracao);
+            controller.cadastrar_procuracao(id, cpf_mandante, cpf_mandatario, data, opcao);
             
             //Pos Registro
             limpar_campos();
@@ -294,21 +222,8 @@ public class View_procuracao extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Selecione um item da lista", "Erro", JOptionPane.ERROR_MESSAGE);
             return 1;
         }
-        try{
-            int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
-            if(op == 0){
-                Procuracao p = procuracoes.get(delete_index);
-                dao.deletar_document(p);
-                JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
-                carregar_tabela();
-                return 0;
-            }else{
-                return 1;
-            }
-        }catch(HeadlessException e){
-            System.out.println("Erro ao deletar!\nErro: " + e);
-            return 1;
-        }
+        controller.deletar_procuracao(delete_index);
+        return 0;
     }
 
     /**

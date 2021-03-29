@@ -26,7 +26,7 @@ public class View_testamento extends javax.swing.JFrame {
     // 0 - add
     // 1 - update
     // 2 - delete
-    private final Dao_testamento dao = Dao_testamento.getInstance();
+    private Controller_testamento controller = new Controller_testamento();
     
     public View_testamento() {
         initComponents();
@@ -75,14 +75,13 @@ public class View_testamento extends javax.swing.JFrame {
     private void carregar_tabela(){
         
         testamentos.clear();
-        try{
-            testamentos = dao.carregar_collection();
-        }catch(Exception e){
-            JOptionPane.showMessageDialog(null, "Erro ao carregar a coleção!", "Erro", JOptionPane.ERROR_MESSAGE);
-        }
+        
+        // Controller carrega a base
+        testamentos = controller.carregar_tabela();
         
         tb_tabela.removeAll();
         
+        // Atualizando a view
         String [] colunas = {"Id", "Id Funcionário", "Cpf Testador", "Cpf Testemunha"};
         DefaultTableModel model = new DefaultTableModel(colunas, 0);
         
@@ -140,7 +139,7 @@ public class View_testamento extends javax.swing.JFrame {
         }
         cpf = cpf.replaceAll("\\.", "");
         cpf = cpf.replaceAll("-", "");
-        if(!validar_cpf(cpf)){
+        if(!controller.validar_cpf(cpf)){
             JOptionPane.showMessageDialog(this, "Cpf do testador invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -152,7 +151,7 @@ public class View_testamento extends javax.swing.JFrame {
         }
         cpf_testemunha = cpf_testemunha.replaceAll("\\.", "");
         cpf_testemunha = cpf_testemunha.replaceAll("-", "");
-        if(!validar_cpf(cpf_testemunha)){
+        if(!controller.validar_cpf(cpf_testemunha)){
             JOptionPane.showMessageDialog(this, "Cpf da testemunha invalido!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -163,7 +162,7 @@ public class View_testamento extends javax.swing.JFrame {
             return false;
         }
         
-        if(!validar_data(data)){
+        if(!controller.validar_data(data)){
             JOptionPane.showMessageDialog(this, "Data invalida!", "Erro", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -173,71 +172,6 @@ public class View_testamento extends javax.swing.JFrame {
         return true;
     }
         
-    private boolean validar_data(String data_string){
-        try {
-            SimpleDateFormat formatted_date = new SimpleDateFormat("dd/MM/yyyy");
-            Date data = formatted_date.parse(data_string);
-            
-            if(data.after(formatted_date.parse("31/12/2021"))){
-                return false;
-            }
-            
-            if(data.before(formatted_date.parse("01/01/1950"))){
-                return false;
-            }
-            
-            return true;
-            
-        } catch (ParseException ex) {
-            System.out.println("Erro ao validar a data!\nerro: " + ex);
-            return false;
-        }
-    }
-    
-    private boolean validar_cpf(String cpf){
-        if (cpf.equals("00000000000") ||
-            cpf.equals("11111111111") ||
-            cpf.equals("22222222222") || cpf.equals("33333333333") ||
-            cpf.equals("44444444444") || cpf.equals("55555555555") ||
-            cpf.equals("66666666666") || cpf.equals("77777777777") ||
-            cpf.equals("88888888888") || cpf.equals("99999999999") ||
-            (cpf.length() != 11))
-            return(false);
-        char dig10, dig11;
-        int sm, i, r, num, peso;
-        
-        sm = 0;
-        peso = 10;
-        for (i=0; i<9; i++) {
-            // converte o i-esimo caractere do CPF em um numero:
-            // por exemplo, transforma o caractere '0' no inteiro 0
-            // (48 eh a posicao de '0' na tabela ASCII)
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-            dig10 = '0';
-        else dig10 = (char)(r + 48); // converte no respectivo caractere numerico
-            sm = 0;
-            peso = 11;
-            for(i=0; i<10; i++) {
-            num = (int)(cpf.charAt(i) - 48);
-            sm = sm + (num * peso);
-            peso = peso - 1;
-        }
-
-        r = 11 - (sm % 11);
-        if ((r == 10) || (r == 11))
-             dig11 = '0';
-        else dig11 = (char)(r + 48);
-        if ((dig10 == cpf.charAt(9)) && (dig11 == cpf.charAt(10)))
-             return true;
-        else return false;
-    }
-    
     private int cadastrar_testamento(){
         
         if(!validar_campos()) return 1;
@@ -248,7 +182,7 @@ public class View_testamento extends javax.swing.JFrame {
             // Verifica id disponivel na coleção.
             int id;
             if(this.opcao == 0){
-                id = dao.verifica_id();
+                id = controller.verifica_id();
             }else id = Integer.parseInt(ftxt_id.getText());
             
             String id_funcionario_string = ftxt_id_funcionario.getText().trim();
@@ -256,21 +190,11 @@ public class View_testamento extends javax.swing.JFrame {
             String cpf_testemunha = ftxt_cpf_testemunha.getText();
             String data_string = ftxt_data.getText();
             
-            int id_funcionario = Integer.parseInt(id_funcionario_string);
-            
+            int id_funcionario = Integer.parseInt(id_funcionario_string);           
             Date data = formatted_date.parse(data_string);
             
-            // Model
-            Testamento testamento = new Testamento(id, cpf_testador, cpf_testemunha, data, id_funcionario);
-            
-            // Se inserir_document retornar 0, Conseguiu salvar na coleção.
-            try{
-                dao.inserir_document(testamento, opcao);
-                testamentos.add(testamento);
-            }catch(Exception e){
-                System.out.println("Erro ao armazenar o registro!\nErro: " + e);
-            }
-            
+            controller.cadastrar_testamento(id, id_funcionario, cpf_testador, cpf_testemunha, data, opcao);
+                        
             // Pos registro
             limpar_campos();
             hab_campos(false);
@@ -324,21 +248,9 @@ public class View_testamento extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Selecione um item da lista", "Erro", JOptionPane.ERROR_MESSAGE);
             return 1;
         }
-        
-        int op = JOptionPane.showConfirmDialog(this, "Você tem certeza?", "Deletar", JOptionPane.OK_CANCEL_OPTION);
-        if(op == 0){
-            Testamento t = testamentos.get(delete_index);
-            try{
-                dao.deletar_document(t);
-            }catch(Exception e){
-                JOptionPane.showMessageDialog(null, "Erro ao deletar o registro!\nErro: " + e, "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-            JOptionPane.showMessageDialog(this, "Registro deletado!", "Delete", JOptionPane.INFORMATION_MESSAGE);
-            carregar_tabela();
-            return 0;
-        }else{
-            return 1;
-        }
+        controller.deletar_testamento(delete_index);
+        carregar_tabela();
+        return 0;
     }
 
     /**

@@ -18,9 +18,9 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author Bruno
  */
-@WebServlet(name = "cartorio_notas_servlet", urlPatterns = {"/cartorio_notas_servlet"})
+@WebServlet(name = "cartorio_notas_servlet", urlPatterns = {"/Cartorio_Notas_Servlet"})
 public class Cartorio_Notas_Servlet extends HttpServlet {
-
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -33,7 +33,17 @@ public class Cartorio_Notas_Servlet extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
+        Controller_funcionario controller = new Controller_funcionario();
         
+        String nome = request.getParameter("nome_funcionario");
+        String cpf = request.getParameter("cpf_funcionario");
+        String email = request.getParameter("email_funcionario");
+        int nivel = Integer.parseInt(request.getParameter("nivel_funcionario"));
+        char[] senha = request.getParameter("senha_funcionario").toCharArray();
+        
+        int id = controller.verifica_id();
+        
+        controller.cadastrar_funcionario(id, nome, email, cpf, nivel, senha, 0);
         
         response.setContentType("text/html;charset=UTF-8");
         try (PrintWriter out = response.getWriter()) {
@@ -41,10 +51,10 @@ public class Cartorio_Notas_Servlet extends HttpServlet {
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
-            out.println("<title>Servlet cartorio_notas_servlet</title>");            
+            out.println("<title>Cadastro de Funcionários</title>");            
             out.println("</head>");
             out.println("<body>");
-            out.println("<h1>Servlet cartorio_notas_servlet at " + request.getContextPath() + "</h1>");
+            out.println("<h1 align='center'>Funcionário Cadastrado!</h1>");
             out.println("</body>");
             out.println("</html>");
         }
